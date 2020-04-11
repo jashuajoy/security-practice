@@ -5,7 +5,8 @@ const ejs = require("ejs");
 const mongoose = require("mongoose");
 const app = express();
 // const encrypt = require("mongoose-encryption");
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 ///////////// CONNECTION TO mongoDB AND CREATING Schemas AND Models //////////
 mongoose.connect("mongodb://localhost:27017/usersDB", {useNewUrlParser: true, useUnifiedTopology: true});
@@ -42,35 +43,43 @@ app.get("/register", function(req, res){
 });
 
 app.post("/register", function(req, res){
-    const newUser = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
+
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash){
+        const newUser = new User({
+            email: req.body.username,
+            password: hash
+        });
+    
+        newUser.save(function(err){
+            if(err){
+                console.log(err);
+            }else{
+                res.render("secrets");
+            }
+        });
     });
 
-    newUser.save(function(err){
-        if(err){
-            console.log(err);
-        }else{
-            res.render("secrets");
-        }
-    });
 });
 
 app.post("/login", function(req, res){
+    
     const userName = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
 
     User.findOne({email: userName}, function(err, foundUser){
         if(err){
             console.log(err);
         }else{
-            if(foundUser && foundUser.password === password){
-                res.render("secrets");
-            }else{
-                res.send("wrong password");
-            }
-        }
+            if(foundUser){ 
+                bcrypt.compare(password, foundUser.password, function(err, compareResult){
+                    if(compareResult == true){
+                        res.render("secrets");
+                    }
+                });
+            }   
+        }     
     });
+        
 });
 
 
